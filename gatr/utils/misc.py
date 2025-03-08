@@ -10,7 +10,9 @@ import numpy as np
 import torch
 from torch import Tensor
 
-from gatr.utils.einsum import gatr_cache
+# from gatr.utils.einsum import gatr_cache
+from gatr.utils.cache import gatr_cache
+
 
 
 class NaNError(BaseException):
