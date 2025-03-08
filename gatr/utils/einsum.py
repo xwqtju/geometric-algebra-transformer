@@ -7,8 +7,11 @@ from typing import Any, Callable, List, Sequence
 
 import opt_einsum
 import torch
+from gatr.utils.misc import minimum_autocast_precision
+from gatr.utils.cache import gatr_cache
 
 
+@minimum_autocast_precision(torch.float32)
 def _einsum_with_path(equation: str, *operands: torch.Tensor, path: List[int]) -> torch.Tensor:
     """Computes einsum with a given contraction path."""
 
@@ -17,7 +20,7 @@ def _einsum_with_path(equation: str, *operands: torch.Tensor, path: List[int]) -
     # pylint:disable-next=protected-access
     return torch._VF.einsum(equation, operands, path=path)  # type: ignore[attr-defined]
 
-
+@minimum_autocast_precision(torch.float32)
 def _einsum_with_path_ignored(equation: str, *operands: torch.Tensor, **kwargs: Any):
     """Calls torch.einsum whilst dropping all kwargs.
 
@@ -26,7 +29,7 @@ def _einsum_with_path_ignored(equation: str, *operands: torch.Tensor, **kwargs: 
     """
     return torch.einsum(equation, *operands)
 
-
+@minimum_autocast_precision(torch.float32)
 def _cached_einsum(equation: str, *operands: torch.Tensor) -> torch.Tensor:
     """Computes einsum whilst caching the optimal contraction path.
 
@@ -38,7 +41,7 @@ def _cached_einsum(equation: str, *operands: torch.Tensor) -> torch.Tensor:
 
     return _einsum_with_path(equation, *operands, path=path)
 
-
+@minimum_autocast_precision(torch.float32)
 @functools.lru_cache(maxsize=None)
 def _get_cached_path_for_equation_and_shapes(
     equation: str, op_shape: Sequence[torch.Tensor]
@@ -48,29 +51,10 @@ def _get_cached_path_for_equation_and_shapes(
 
     return [item for pair in tupled_path for item in pair]
 
-
-class gatr_cache(dict):
-    """Serves as a `torch.compile`-compatible replacement for `@functools.cache()`."""
-
-    def __init__(self, fn: Callable):
-        super().__init__()
-        self.fn = fn
-
-    def __missing__(self, item: Any) -> Any:
-        """Computes missing function values and adds them to the cache."""
-        tensor = self.fn(*item)
-        self[item] = tensor
-        return tensor
-
-    def __call__(self, *args: Any) -> Any:
-        """Allows to access cached function values with `()` instead of `[]`."""
-        return self[args]
-
-
 _gatr_einsum = _cached_einsum
 _gatr_einsum_with_path = _einsum_with_path
 
-
+@minimum_autocast_precision(torch.float32)
 def gatr_einsum(equation: str, *operands: torch.Tensor):
     """Computes torch.einsum with contraction path caching if enabled (and compilation is not used).
 
@@ -78,7 +62,7 @@ def gatr_einsum(equation: str, *operands: torch.Tensor):
     """
     return _gatr_einsum(equation, *operands)
 
-
+@minimum_autocast_precision(torch.float32)
 def gatr_einsum_with_path(equation: str, *operands: torch.Tensor, path: List[int]):
     """Computes einsum with a given contraction path (which is ignored when using compilation).
 
@@ -86,7 +70,7 @@ def gatr_einsum_with_path(equation: str, *operands: torch.Tensor, path: List[int
     """
     return _gatr_einsum_with_path(equation, *operands, path=path)
 
-
+@minimum_autocast_precision(torch.float32)
 def enable_cached_einsum(flag: bool) -> None:
     """Selects whether to use caching of optimal paths in einsum contraction computations.
 
